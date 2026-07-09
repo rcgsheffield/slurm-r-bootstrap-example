@@ -18,7 +18,7 @@
 #SBATCH --output=slurm_logs/chunk_%A_%a.out
 #SBATCH --error=slurm_logs/chunk_%A_%a.err
 
-module load R/4.1.2                    # CHANGE: run `module spider R` on Stanage for the exact available version
+module load R/4.4.1-foss-2022b          # CHANGE: run `module spider R` on Stanage for the exact available version
 
 set -euo pipefail
 

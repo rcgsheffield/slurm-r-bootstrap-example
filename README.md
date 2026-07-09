@@ -34,6 +34,16 @@ install.packages(c("ranger", "xgboost", "e1071", "dplyr", "jsonlite"))
 
 For stricter reproducibility (pinned versions across cluster nodes), run `renv::init()` followed by `renv::snapshot()` once dependencies are installed — this is an optional upgrade, not required to use the template.
 
+On Stanage, install into your personal library from an **interactive** session before submitting any batch jobs — `module load R/...` won't have these packages until you do:
+
+```bash
+srun --pty bash -i
+module load R/4.4.1-foss-2022b   # same version as in slurm/array_job.sh and slurm/combine_job.sh
+R
+```
+
+then run the `install.packages(...)` call above inside that R session (you'll be prompted to create a personal library on first use). CPU and GPU nodes have different architectures, and different R major/minor versions need separate installs, so re-run this if you change `module load R/...` or switch node types — see the [Stanage R docs](https://docs.hpc.shef.ac.uk/en/latest/stanage/software/apps/r.html) for details.
+
 ## Running the toy example locally
 
 ```r
@@ -103,6 +113,8 @@ Before submitting for real, edit the placeholder `#SBATCH` directives in `slurm/
 - `--partition` and `--account`: Stanage-specific values (`sinfo`, `sacctmgr show account`)
 - `module load R/...`: run `module spider R` on Stanage to find the exact available version string
 - `--time`, `--mem`, `--cpus-per-task`: sized for the toy example here; scale to your real per-replication fitting cost
+
+See the [Stanage R docs](https://docs.hpc.shef.ac.uk/en/latest/stanage/software/apps/r.html) for the full list of available `module load R/...` versions and package installation notes.
 
 ## Sampling variability vs. algorithmic variability
 
