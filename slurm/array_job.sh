@@ -13,7 +13,8 @@
                                         #   per-job ceiling is 96:00:00 - this is what chunking keeps you under.
 ## SBATCH --partition=YOUR_PARTITION    # UNCOMMENT + CHANGE: run `sinfo` on Stanage to see available partitions;
                                         #   left commented so the scheduler's default partition is used until you set one
-#SBATCH --account=YOUR_PROJECT_CODE    # CHANGE: your Stanage project/account code (`sacctmgr show account`)
+## SBATCH --account=YOUR_PROJECT_CODE   # UNCOMMENT + CHANGE: needed if you belong to multiple Stanage projects
+                                        #   or `sacctmgr show account` shows no default; check with `sacctmgr show account`
 #SBATCH --cpus-per-task=1              # matches nthread=1 / num.threads=1 set in R/fit_models.R
 #SBATCH --mem=4G                       # CHANGE: toy example is tiny; increase for a real dataset/estimator
 #SBATCH --output=slurm_logs/chunk_%A_%a.out

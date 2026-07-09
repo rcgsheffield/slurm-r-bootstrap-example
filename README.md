@@ -49,7 +49,7 @@ This is a **template**, not a finished analysis. The toy statistical setup — a
 2. **Adapt the template to your own estimator** (skip this step if you're just trying the toy example): edit `R/fit_models.R` (what gets fitted) and `R/simulate_data.R` (what data it's fitted to). Leave the chunking/SLURM/resume machinery alone.
 
 3. **Fill in the placeholder `#SBATCH` directives** in `slurm/array_job.sh` and `slurm/combine_job.sh`:
-   - `--partition` and `--account` — see `sinfo` and `sacctmgr show account`
+   - `--partition` and `--account` are commented out so jobs run out of the box with the scheduler's defaults; uncomment and set them (see `sinfo` and `sacctmgr show account`) if your account needs an explicit partition/project code, or if `sbatch` reports "Invalid account or account/partition combination"
    - `module load R/...` — confirm the version with `module spider R`
    - `--time`, `--mem`, `--cpus-per-task` — scale to your real per-replication cost, not the toy example's
 

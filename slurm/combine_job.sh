@@ -13,7 +13,7 @@
 #SBATCH --job-name=boot_combine
 #SBATCH --time=00:30:00                # CHANGE: combining is cheap; bump only if you have very many chunks/reps
 ## SBATCH --partition=YOUR_PARTITION    # UNCOMMENT + CHANGE: same as array_job.sh
-#SBATCH --account=YOUR_PROJECT_CODE    # CHANGE: same as array_job.sh
+## SBATCH --account=YOUR_PROJECT_CODE   # UNCOMMENT + CHANGE: same as array_job.sh
 #SBATCH --cpus-per-task=1
 #SBATCH --mem=4G                       # CHANGE: increase if combining thousands of replications gets memory-heavy
 #SBATCH --output=slurm_logs/combine_%j.out
