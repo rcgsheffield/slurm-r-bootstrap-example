@@ -11,7 +11,8 @@
 #SBATCH --time=04:00:00                # CHANGE: per-task walltime. Sized for the toy example; scale to your
                                         #   real fitting cost * reps_per_chunk, with margin. Stanage's overall
                                         #   per-job ceiling is 96:00:00 - this is what chunking keeps you under.
-#SBATCH --partition=general            # CHANGE: run `sinfo` on Stanage to see available partitions
+## SBATCH --partition=YOUR_PARTITION    # UNCOMMENT + CHANGE: run `sinfo` on Stanage to see available partitions;
+                                        #   left commented so the scheduler's default partition is used until you set one
 #SBATCH --account=YOUR_PROJECT_CODE    # CHANGE: your Stanage project/account code (`sacctmgr show account`)
 #SBATCH --cpus-per-task=1              # matches nthread=1 / num.threads=1 set in R/fit_models.R
 #SBATCH --mem=4G                       # CHANGE: toy example is tiny; increase for a real dataset/estimator
