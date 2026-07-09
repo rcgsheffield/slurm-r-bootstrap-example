@@ -1,0 +1,5 @@
+output/
+results/
+slurm_logs/
+.Rhistory
+.Rproj.user/

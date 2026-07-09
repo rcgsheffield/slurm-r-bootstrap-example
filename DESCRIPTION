@@ -1,0 +1,14 @@
+Package: slurmRBootstrapExample
+Title: Template for Bootstrap Simulations on Stanage (SLURM)
+Version: 0.0.0.9000
+Description: Not a buildable R package - this file exists only as a
+    dependency manifest, so a reader (or renv) can see what to install.
+    Source the files under R/ directly; there is no package build step.
+Imports:
+    ranger,
+    xgboost,
+    e1071,
+    dplyr,
+    jsonlite
+License: MIT
+Encoding: UTF-8
