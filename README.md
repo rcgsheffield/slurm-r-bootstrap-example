@@ -21,8 +21,11 @@ This is a **template**, not a finished analysis. The toy statistical setup — a
    then inside R:
 
    ```r
-   install.packages(c("ranger", "xgboost", "e1071", "dplyr", "jsonlite"))
+   install.packages(c("ranger", "xgboost", "e1071", "dplyr", "jsonlite"),
+                     repos = "https://www.stats.bris.ac.uk/R/")
    ```
+
+   The `repos` argument points at a UK CRAN mirror (Bristol) so the install doesn't prompt you to pick one and doesn't fetch packages from further afield.
 
    Accept the prompt to create a personal library on first use, then exit R and the interactive shell.
 
