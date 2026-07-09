@@ -19,7 +19,7 @@
 #SBATCH --output=slurm_logs/combine_%j.out
 #SBATCH --error=slurm_logs/combine_%j.err
 
-module load R/4.4.1-foss-2022b          # CHANGE: same as array_job.sh
+module load R/4.4.1-foss-2022b          # same as array_job.sh (verified latest available on Stanage)
 
 set -euo pipefail
 
