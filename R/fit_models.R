@@ -17,22 +17,26 @@ fit_models <- function(train_data, grid) {
 }
 
 # xgboost wants a numeric matrix, not a data.frame - as.matrix() on a
-# single-column data.frame keeps the column name, which xgb.DMatrix needs
-# to line up training and prediction data consistently.
+# single-column data.frame keeps the column name, so training and
+# prediction data line up consistently.
 #
 # nthread = 1: multi-threaded xgboost is not exactly reproducible even with
 # a fixed seed (thread scheduling affects floating-point summation order),
 # and this also matches --cpus-per-task=1 in the SLURM scripts.
+#
+# x/y, learning_rate, verbosity: xgboost >= 2.0's xgboost() interface renamed
+# data/label/eta/verbose - these names avoid the deprecation warnings (which
+# become errors in future xgboost releases).
 fit_xgboost <- function(train_data, grid) {
-  dtrain <- xgboost::xgb.DMatrix(data = as.matrix(train_data["x"]), label = train_data$y)
   fit <- xgboost::xgboost(
-    data = dtrain,
+    x = as.matrix(train_data["x"]),
+    y = train_data$y,
     nrounds = 50,
     max_depth = 3,
-    eta = 0.3,
+    learning_rate = 0.3,
     objective = "reg:squarederror",
     nthread = 1,
-    verbose = 0
+    verbosity = 0
   )
   predict(fit, as.matrix(grid["x"]))
 }
