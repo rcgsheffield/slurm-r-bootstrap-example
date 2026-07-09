@@ -4,6 +4,54 @@ A small example R project demonstrating a good-practice pattern for running a co
 
 This is a **template**, not a finished analysis. The toy statistical setup — an estimator whose function is refit via gradient boosting, random forest, and SVM on each bootstrap replication — is a stand-in. Adapt it to your own estimator by editing `R/fit_models.R` (what gets fitted) and `R/simulate_data.R` (what data it's fitted to); the chunking/SLURM/resume machinery around them should not need to change.
 
+## Quick start
+
+1. **Clone the repo onto Stanage** (or wherever you're running this) and `cd` into it.
+
+2. **Install R packages into your personal library** — one-time, from an interactive session:
+
+   ```bash
+   srun --pty bash -i
+   module load R/4.4.1-foss-2022b
+   R
+   ```
+
+   then inside R:
+
+   ```r
+   install.packages(c("ranger", "xgboost", "e1071", "dplyr", "jsonlite"))
+   ```
+
+   Accept the prompt to create a personal library on first use, then exit R and the interactive shell.
+
+3. **Test the pipeline locally** before scaling up — it runs in seconds:
+
+   ```r
+   Rscript scripts/generate_data.R output
+   Rscript scripts/run_chunk.R 1 5 1000000 output
+   Rscript scripts/combine.R output results/combined_results
+   ```
+
+   Confirm `results/combined_results.csv` looks sane.
+
+4. **Adapt the template to your own estimator** (skip this step if you're just trying the toy example): edit `R/fit_models.R` (what gets fitted) and `R/simulate_data.R` (what data it's fitted to). Leave the chunking/SLURM/resume machinery alone.
+
+5. **Fill in the placeholder `#SBATCH` directives** in `slurm/array_job.sh` and `slurm/combine_job.sh`:
+   - `--partition` and `--account` — see `sinfo` and `sacctmgr show account`
+   - `module load R/...` — confirm the version with `module spider R`
+   - `--time`, `--mem`, `--cpus-per-task` — scale to your real per-replication cost, not the toy example's
+
+6. **Submit the array job, then the combine job dependent on it:**
+
+   ```bash
+   jid=$(sbatch --parsable slurm/array_job.sh)
+   sbatch --dependency=afterok:${jid} slurm/combine_job.sh
+   ```
+
+7. **If any array tasks fail or time out**, use `sacct` plus the missing-chunk check further down in this README to find which ones, and resubmit only those (`sbatch --array=3,17,42 slurm/array_job.sh`) before the combine job's `afterok` dependency will let it run.
+
+See the sections below for the reasoning behind the chunking strategy, resume behaviour, and known gotchas.
+
 ## Repo structure
 
 | File | Role |
