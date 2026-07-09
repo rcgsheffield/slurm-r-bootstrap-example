@@ -4,15 +4,17 @@ A small example R project demonstrating a good-practice pattern for running a co
 
 This is a **template**, not a finished analysis. The toy statistical setup — an estimator whose function is refit via gradient boosting, random forest, and SVM on each bootstrap replication — is a stand-in. Adapt it to your own estimator by editing `R/fit_models.R` (what gets fitted) and `R/simulate_data.R` (what data it's fitted to); the chunking/SLURM/resume machinery around them should not need to change.
 
-## Quick start
+## Installation
 
 1. **Clone the repo onto Stanage** (or wherever you're running this) and `cd` into it.
 
-2. **Install R packages into your personal library** — one-time, from an interactive session:
+2. **Install the R dependencies into your personal library.** `DESCRIPTION` is a manifest, not a buildable package — install what it lists rather than trying to install the repo itself.
+
+   On Stanage, this must be done from an **interactive** session before submitting any batch jobs — `module load R/...` won't have these packages until you do:
 
    ```bash
    srun --pty bash -i
-   module load R/4.4.1-foss-2022b
+   module load R/4.4.1-foss-2022b   # same version as in slurm/array_job.sh and slurm/combine_job.sh
    R
    ```
 
@@ -24,31 +26,60 @@ This is a **template**, not a finished analysis. The toy statistical setup — a
 
    Accept the prompt to create a personal library on first use, then exit R and the interactive shell.
 
-3. **Test the pipeline locally** before scaling up — it runs in seconds:
+   CPU and GPU nodes have different architectures, and different R major/minor versions need separate installs, so re-run this if you change `module load R/...` or switch node types — see the [Stanage R docs](https://docs.hpc.shef.ac.uk/en/latest/stanage/software/apps/r.html) for details.
+
+   For stricter reproducibility (pinned versions across cluster nodes), run `renv::init()` followed by `renv::snapshot()` once dependencies are installed — this is an optional upgrade, not required to use the template.
+
+## Usage
+
+1. **Test the pipeline locally** before scaling up — it runs in seconds:
 
    ```r
    Rscript scripts/generate_data.R output
-   Rscript scripts/run_chunk.R 1 5 1000000 output
+   Rscript scripts/run_chunk.R 1 5 1000000 output   # chunk 1, 5 reps
+   Rscript scripts/run_chunk.R 2 5 1000000 output   # chunk 2, 5 reps
    Rscript scripts/combine.R output results/combined_results
    ```
 
-   Confirm `results/combined_results.csv` looks sane.
+   This produces `results/combined_results.csv` with pointwise `mean`, `se`, `ci_lo`, `ci_hi`, and `n_reps` per grid point per method — confirm it looks sane.
 
-4. **Adapt the template to your own estimator** (skip this step if you're just trying the toy example): edit `R/fit_models.R` (what gets fitted) and `R/simulate_data.R` (what data it's fitted to). Leave the chunking/SLURM/resume machinery alone.
+2. **Adapt the template to your own estimator** (skip this step if you're just trying the toy example): edit `R/fit_models.R` (what gets fitted) and `R/simulate_data.R` (what data it's fitted to). Leave the chunking/SLURM/resume machinery alone.
 
-5. **Fill in the placeholder `#SBATCH` directives** in `slurm/array_job.sh` and `slurm/combine_job.sh`:
+3. **Fill in the placeholder `#SBATCH` directives** in `slurm/array_job.sh` and `slurm/combine_job.sh`:
    - `--partition` and `--account` — see `sinfo` and `sacctmgr show account`
    - `module load R/...` — confirm the version with `module spider R`
    - `--time`, `--mem`, `--cpus-per-task` — scale to your real per-replication cost, not the toy example's
 
-6. **Submit the array job, then the combine job dependent on it:**
+4. **Submit the array job, then the combine job dependent on it:**
 
    ```bash
    jid=$(sbatch --parsable slurm/array_job.sh)
    sbatch --dependency=afterok:${jid} slurm/combine_job.sh
    ```
 
-7. **If any array tasks fail or time out**, use `sacct` plus the missing-chunk check further down in this README to find which ones, and resubmit only those (`sbatch --array=3,17,42 slurm/array_job.sh`) before the combine job's `afterok` dependency will let it run.
+   `--dependency=afterok` means the combine job only runs if every array task in the job it depends on succeeded.
+
+5. **If any array tasks fail or time out**, check which chunks are missing or short of their expected replication count:
+
+   ```r
+   n_chunks <- 50
+   reps_per_chunk <- 20
+   status <- sapply(1:n_chunks, function(i) {
+     f <- sprintf("output/chunk_%03d.rds", i)
+     if (!file.exists(f)) return(0L)
+     length(readRDS(f))
+   })
+   missing <- which(status < reps_per_chunk)
+   cat(paste(missing, collapse = ","))
+   ```
+
+   `sbatch --array=` accepts a comma-separated list, not just ranges, so resubmit only the incomplete chunks:
+
+   ```bash
+   sbatch --array=3,17,42 slurm/array_job.sh
+   ```
+
+   before the combine job's `afterok` dependency will let it run. The resume logic in `run_chunk.R` means even a chunk that's already partially filled in won't redo its completed replications.
 
 See the sections below for the reasoning behind the chunking strategy, resume behaviour, and known gotchas.
 
@@ -72,37 +103,6 @@ A single predictor `x`, a nonlinear `true_function(x) = sin(x) + 0.5*x*cos(2*x)`
 
 Sizes are kept small (n=200, grid of 50, `nrounds=50`/`num.trees=200`) so the whole pipeline runs in seconds locally — test end-to-end before scaling up on the cluster.
 
-## Dependencies
-
-`DESCRIPTION` is a manifest, not a buildable package — install what it lists with:
-
-```r
-install.packages(c("ranger", "xgboost", "e1071", "dplyr", "jsonlite"))
-```
-
-For stricter reproducibility (pinned versions across cluster nodes), run `renv::init()` followed by `renv::snapshot()` once dependencies are installed — this is an optional upgrade, not required to use the template.
-
-On Stanage, install into your personal library from an **interactive** session before submitting any batch jobs — `module load R/...` won't have these packages until you do:
-
-```bash
-srun --pty bash -i
-module load R/4.4.1-foss-2022b   # same version as in slurm/array_job.sh and slurm/combine_job.sh
-R
-```
-
-then run the `install.packages(...)` call above inside that R session (you'll be prompted to create a personal library on first use). CPU and GPU nodes have different architectures, and different R major/minor versions need separate installs, so re-run this if you change `module load R/...` or switch node types — see the [Stanage R docs](https://docs.hpc.shef.ac.uk/en/latest/stanage/software/apps/r.html) for details.
-
-## Running the toy example locally
-
-```r
-Rscript scripts/generate_data.R output
-Rscript scripts/run_chunk.R 1 5 1000000 output   # chunk 1, 5 reps
-Rscript scripts/run_chunk.R 2 5 1000000 output   # chunk 2, 5 reps
-Rscript scripts/combine.R output results/combined_results
-```
-
-This produces `results/combined_results.csv` with pointwise `mean`, `se`, `ci_lo`, `ci_hi`, and `n_reps` per grid point per method.
-
 ## Chunking strategy
 
 The real config (`slurm/array_job.sh`) is 1000 total replications split into 50 chunks of 20. Chunking rather than one long serial loop matters for three reasons:
@@ -122,47 +122,6 @@ To change the total number of replications or how they're chunked, edit `REPS_PE
 On start, `run_chunk.R` loads any existing output file for that chunk index and skips replications already present, so re-running a partially-completed chunk resumes rather than redoing finished work.
 
 (This overwrite-per-iteration approach is O(reps_per_chunk²) in bytes written, which is negligible at `reps_per_chunk = 20`. If you scale that up into the hundreds, switch to saving one small file per replication instead and have `combine_results.R` glob those.)
-
-## Detecting and resubmitting missing/incomplete chunks
-
-After the array job finishes, check which chunks are missing or short of their expected replication count:
-
-```r
-n_chunks <- 50
-reps_per_chunk <- 20
-status <- sapply(1:n_chunks, function(i) {
-  f <- sprintf("output/chunk_%03d.rds", i)
-  if (!file.exists(f)) return(0L)
-  length(readRDS(f))
-})
-missing <- which(status < reps_per_chunk)
-cat(paste(missing, collapse = ","))
-```
-
-`sbatch --array=` accepts a comma-separated list, not just ranges, so you can resubmit only the incomplete chunks:
-
-```bash
-sbatch --array=3,17,42 slurm/array_job.sh
-```
-
-The resume logic in `run_chunk.R` means even a chunk that's already partially filled in won't redo its completed replications.
-
-## Submitting on Stanage
-
-```bash
-jid=$(sbatch --parsable slurm/array_job.sh)
-sbatch --dependency=afterok:${jid} slurm/combine_job.sh
-```
-
-`--dependency=afterok` means the combine job only runs if every array task in the job it depends on succeeded — check `sacct` and resubmit any failed/incomplete chunks first if not.
-
-Before submitting for real, edit the placeholder `#SBATCH` directives in `slurm/array_job.sh` and `slurm/combine_job.sh`:
-
-- `--partition` and `--account`: Stanage-specific values (`sinfo`, `sacctmgr show account`)
-- `module load R/...`: run `module spider R` on Stanage to find the exact available version string
-- `--time`, `--mem`, `--cpus-per-task`: sized for the toy example here; scale to your real per-replication fitting cost
-
-See the [Stanage R docs](https://docs.hpc.shef.ac.uk/en/latest/stanage/software/apps/r.html) for the full list of available `module load R/...` versions and package installation notes.
 
 ## Sampling variability vs. algorithmic variability
 
